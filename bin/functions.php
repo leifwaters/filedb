@@ -112,10 +112,37 @@ function backupOriginal($file) {
 			mkdir("c:/wamp/www/original/" .pathinfo($file, PATHINFO_DIRNAME),0777,TRUE);
 			}
 			rename($file, "c:/wamp/www/original/" .$file);
-			$file = pathinfo($file, PATHINFO_DIRNAME). "/" .pathinfo($file, PATHINFO_FILENAME). ".html";
-header('Location:/editDocument.php?document=$file');
+			}
 
-	
+function displaySpreadsheet($file) {
+      $cnx = fopen($file, "r"); 
+      echo("<table border='1'>"); // echo the table 
+      while (!feof ($cnx)) { // while not end of file 
+      $buffer = fgets($cnx); // get contents of file (name) as variable 
+      $values = explode(",", $buffer); //explode "," between the values within the  contents 
+      echo "<tr>"; 
+      for ( $j = 0; $j < count($values); $j++ ) {  // 
+      echo("<td>$values[$j]</td>"); 
+      } 
+      echo"</tr>"; 
+      }; 
+      echo("</table>"); 
+      fclose($cnx); //close filename variable 
 }
+
+
+function convertDocument($file) {
+			$path = pathinfo($file, PATHINFO_DIRNAME);
+			$command = "soffice --headless -convert-to html:HTML \"$file\"  --outdir \"c:/wamp/www/$path\"";
+		exec($command); // Convert file from current format to HTML
+		$htmlFilename = pathinfo($file, PATHINFO_DIRNAME). "/" .pathinfo($file, PATHINFO_FILENAME). ".html";
+		while (!file_exists($htmlFilename)) {
+			
+		}
+				if(!copy($file, "/original/" .$file)) {echo "file did not copy";}
+
+				header("Location:/editDocument.php?document=$htmlFilename");	
+}
+
 		
 		?>
