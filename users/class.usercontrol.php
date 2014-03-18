@@ -7,7 +7,7 @@
  * Used to create, manage, login, and handle user access
  *
  * @author Michael Bryan
- * @version 0.0.1
+ * @version 0.0.10
  *
  * @TODO
  */
@@ -24,12 +24,13 @@ class UserControl {
 	 * @TODO move the database info into a seperate DB handler class
 	 */
 	private $config = array(
-		'dbhost' => 'localhost',
-		'dbuser' => 'root',
-		'dbpass' => 'root',
-		'db'   => 'filedb'
+		'dbhost'   => 'localhost',
+		'dbuser'   => 'root',
+		'dbpass'   => 'root',
+		'db'       => 'filedb',
+		'site_url' => 'http://localhost/daccz',
+		'salt'     => 'sdflkj423qltq4fq354ymvq89qo34ngvqcmp459y3von8octhmw590pmqt48cqov34q0n354vmy8cqovmc49vy9no4c9mtpqnov853cm4iyg5jv8ony',
 	);
-
 
 	/**
 	 * error
@@ -68,37 +69,80 @@ class UserControl {
 	 */
 	private $db;
 
+	public $user;
+
 	/**
 	 * __construct function.
 	 *
 	 * @access public
 	 * @return void
 	 */
-	public function __construct($level = 75, $user = null) {
+	public function __construct($level = 75, $page = null) {
+		session_start();
+
+		foreach($this->config as $key => $value){
+        	$this->{$key} = $value;
+		}
 
 		try {
-		  $this->db = new PDO('mysql:host='.$this->config['dbhost'].';dbname='.$this->config['db'], $this->config['dbuser'], $this->config['dbpass']);
+		  $this->db = new PDO('mysql:host='.$this->dbhost.';dbname='.$this->db, $this->dbuser, $this->dbpass);
 		}
 		catch(PDOException $e) {
 		    echo $e->getMessage();
 		}
 
-		session_start();
+		if(isset($_COOKIE['hash'])) {
+			if(defined($_COOKIE['hash'])) {
+				if($_SESSION[$_COOKIE['hash']]->level >= $level) {
+					$this->error[] = 'You do not have permission to access this page.';
+				} else {
 
-		$_SESSION[]
+				}
 
+			}
+		} elseif($page != 'login') {
+			header("Location: ".$this->site_url."/users/login.php");
+		}
 	}
 
 	/**
 	 * login function.
 	 *
 	 * @access public
-	 * @param mixed $user
+	 * @param mixed $username
 	 * @param mixed $password
 	 * @return void
 	 */
-	public function login($user, $password) {
+	public function login($username, $password, $page = null) {
+		$hash = sha1($username);
+		$stmt = $this->db->prepare('SELECT * FROM `users` WHERE `login_hash`=:hash');
+		$stmt->bindParam(':hash', $hash);
+		$stmt->execute();
 
+		try {
+			$user = $stmt->fetch(PDO::FETCH_OBJ);
+			if($username === $user->username && crypt($password, $this->salt) === $user->password) {
+				setcookie("hash", $user->login_hash, time()+1800, '/');
+
+				$_SESSION[$user->login_hash] = $user;
+
+				if($page !== null) {
+					header('Location:'.$this->site_url.'/'.$page);
+				}
+
+				return true;
+			} else {
+				$this->error[] = 'Your username or password is incorrect. Please try again.';
+				return false;
+			}
+		} catch(PDOException $e) {
+		    echo $e->getMessage();
+		}
+	}
+
+	public function user() {
+		// Make some stuff here for shortcuts to the session stuff
+		// see about accessing stuff like $auth->user()->firstName;
 	}
 
 	/**
@@ -136,7 +180,7 @@ class UserControl {
 		} elseif($password !== $passconfirm) {
 			$this->error[] = 'Your passwords do not match.';
 		} else {
-			$password_hash = sha1($password);
+			$password_hash = crypt($password, $this->salt);
 		}
 
 		// Check that firstName and lastName are only letters
@@ -156,15 +200,19 @@ class UserControl {
 		// I alone determine what usernames will be
 		$user = substr(lcfirst($firstName), 0, 1).ucfirst($lastName);
 
+		// Create a hash for this user by sha1 on the username
+		$hash = sha1($user);
+
 		// Now we're in the nitty gritty
 		// Let's upload our validated user
 		try{
-			$stmt = $this->db->prepare("INSERT INTO users (username, password, firstName, lastName, level) value (:username, :password, :firstName, :lastName, :level)");
+			$stmt = $this->db->prepare("INSERT INTO users (`username`, `password`, `firstName`, `lastName`, `level`, `login_hash`) value (:username, :password, :firstName, :lastName, :level, :hash)");
 			$stmt->bindParam(':username', $user);
 			$stmt->bindParam(':password', $password_hash);
 			$stmt->bindParam(':firstName', $firstName);
 			$stmt->bindParam(':lastName', $lastName);
 			$stmt->bindParam(':level', $level);
+			$stmt->bindParam(':hash', $hash);
 			$stmt->execute();
 			$this->success['created'] = $user.' was created!';
 		}
