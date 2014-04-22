@@ -140,6 +140,10 @@ class UserControl {
 		}
 	}
 
+	public function logout() {
+
+	}
+
 	public function user() {
 		// Make some stuff here for shortcuts to the session stuff
 		// see about accessing stuff like $auth->user()->firstName;
@@ -165,7 +169,7 @@ class UserControl {
 	 * @TODO possibly add a memberOf or hasAccess option to specify what can and can not be accessed
 	 * @TODO add a check to see a username is currently in the database
 	 */
-	public function create_user($password, $passconfirm, $firstName, $lastName, $level) {
+	public function create_user($password, $passconfirm, $firstName, $lastName, $level, $user = null) {
 
 		// Trust No One
 		// So let's validate the input of those pesky users
@@ -175,7 +179,7 @@ class UserControl {
 		// at least 1 number
 		// at least 1 letter
 		// Allow special characters
-		if(!preg_match('/^(?=.*[^a-zA-Z])(?=.*[a-z])(?=.*[A-Z])\S{8,}$/', $password)) {
+		if(!preg_match('/^(?=.*[^a-zA-Z])(?=.*[a-z])(?=.*[A-Z])\S{6,}$/', $password)) {
 			$this->error[] = 'Your password does not meet the requirements.';
 		} elseif($password !== $passconfirm) {
 			$this->error[] = 'Your passwords do not match.';
@@ -200,28 +204,38 @@ class UserControl {
 		// I alone determine what usernames will be
 		$user = substr(lcfirst($firstName), 0, 1).ucfirst($lastName);
 
+		// And therefore they must be checked, we'll append a number
+
+		if(!$this->isUnique($user)) {
+			$this->showUserField = true;
+			$this->user = $user;
+		}
+
 		// Create a hash for this user by sha1 on the username
 		$hash = sha1($user);
 
 		// Now we're in the nitty gritty
 		// Let's upload our validated user
-		try{
-			$stmt = $this->db->prepare("INSERT INTO users (`username`, `password`, `firstName`, `lastName`, `level`, `login_hash`) value (:username, :password, :firstName, :lastName, :level, :hash)");
-			$stmt->bindParam(':username', $user);
-			$stmt->bindParam(':password', $password_hash);
-			$stmt->bindParam(':firstName', $firstName);
-			$stmt->bindParam(':lastName', $lastName);
-			$stmt->bindParam(':level', $level);
-			$stmt->bindParam(':hash', $hash);
-			$stmt->execute();
-			$this->success['created'] = $user.' was created!';
-		}
-		catch(PDOException $e) {
-			$this->error[] = "Something went wrong with the database when trying to add a user.";
-    		file_put_contents('PDOErrors.txt', $e->getMessage(), FILE_APPEND);
-		}
 
-		$this->closeDB();
+		if(empty($this->error)) {
+			try{
+				$stmt = $this->db->prepare("INSERT INTO users (`username`, `password`, `firstName`, `lastName`, `level`, `login_hash`) value (:username, :password, :firstName, :lastName, :level, :hash)");
+				$stmt->bindParam(':username', $user);
+				$stmt->bindParam(':password', $password_hash);
+				$stmt->bindParam(':firstName', $firstName);
+				$stmt->bindParam(':lastName', $lastName);
+				$stmt->bindParam(':level', $level);
+				$stmt->bindParam(':hash', $hash);
+				$stmt->execute();
+				$this->success['created'] = $user.' was created!';
+			}
+			catch(PDOException $e) {
+				$this->error[] = "Something went wrong with the database when trying to add a user.";
+	    		file_put_contents('PDOErrors.txt', $e->getMessage(), FILE_APPEND);
+			}
+
+			$this->closeDB();
+		}
 
 	}
 
@@ -236,7 +250,22 @@ class UserControl {
 	 * @return void
 	 */
 	private function isUnique($username) {
+		try{
+			$stmt = $this->db->prepare('SELECT COUNT(id) FROM `users` WHERE `username`=:username');
+			$stmt->bindParam(':username', $username);
+			$stmt->execute();
 
+			$rows = $stmt->rowCount();
+
+			if($rows > 0) {
+				$this->error[] = 'The username is currently in use.';
+				return false;
+			}
+		}
+		catch(PDOException $e) {
+			$this->error[] = "Something went wrong with the database when trying to check for a username.";
+    		file_put_contents('PDOErrors.txt', $e->getMessage(), FILE_APPEND);
+		}
 	}
 
 	/**

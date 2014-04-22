@@ -37,6 +37,13 @@ if($_POST) {
 	<h1>New User</h1>
 	<form action="" method="post">
 
+		<?php if($auth->showUserField === true) : ?>
+		<p>
+			<label for="username">Username:</label><br />
+			<input type="text" name="username" value="<?php echo $auth->user; ?>" />
+		</p>
+		<?php endif; ?>
+
 		<p>
 			<label for="firstName">First Name:</label><br />
 			<input type="text" name="firstName" />
