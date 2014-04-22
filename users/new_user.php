@@ -4,7 +4,11 @@ require_once('class.usercontrol.php');
 $auth = new UserControl(0);
 
 if($_POST) {
-	$auth->create_user($_POST['password'], $_POST['passwordConfirm'], $_POST['firstName'], $_POST['lastName'], $_POST['level']);
+	if($auth->showUserField !== null) {
+		$auth->create_user($_POST['password'], $_POST['passwordConfirm'], $_POST['firstName'], $_POST['lastName'], $_POST['level'], $_POST['username']);
+	} else {
+		$auth->create_user($_POST['password'], $_POST['passwordConfirm'], $_POST['firstName'], $_POST['lastName'], $_POST['level']);
+	}
 }
 ?>
 <!doctype html>
