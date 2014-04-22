@@ -57,6 +57,17 @@ class UserControl {
 	 */
 	public $success = null;
 
+	/**
+	 * showUserField
+	 *
+	 * Used when a specified username is taken. Checked on new_user.php to display field.
+	 *
+	 * (default value: null)
+	 *
+	 * @var mixed
+	 * @access public
+	 */
+	public $showUserField = null;
 
 	/**
 	 * db
@@ -68,8 +79,6 @@ class UserControl {
 	 * @TODO this needs to go when the DB handler class is created
 	 */
 	private $db;
-
-	public $user;
 
 	/**
 	 * __construct function.
@@ -202,13 +211,13 @@ class UserControl {
 		}
 
 		// I alone determine what usernames will be
-		$user = substr(lcfirst($firstName), 0, 1).ucfirst($lastName);
+		if($user === null) {
+			$user = substr(lcfirst($firstName), 0, 1).ucfirst($lastName);
+		}
 
-		// And therefore they must be checked, we'll append a number
-
+		// And therefore they must be checked
 		if(!$this->isUnique($user)) {
-			$this->showUserField = true;
-			$this->user = $user;
+			$this->showUserField = $user;
 		}
 
 		// Create a hash for this user by sha1 on the username
@@ -251,12 +260,10 @@ class UserControl {
 	 */
 	private function isUnique($username) {
 		try{
-			$stmt = $this->db->prepare('SELECT COUNT(id) FROM `users` WHERE `username`=:username');
+			$stmt = $this->db->prepare('SELECT id FROM `users` WHERE `username`=:username');
 			$stmt->bindParam(':username', $username);
 			$stmt->execute();
-
 			$rows = $stmt->rowCount();
-
 			if($rows > 0) {
 				$this->error[] = 'The username is currently in use.';
 				return false;
