@@ -4,11 +4,12 @@ require_once('class.usercontrol.php');
 $auth = new UserControl(0);
 
 if($_POST) {
-	if($auth->showUserField !== null) {
-		$auth->create_user($_POST['password'], $_POST['passwordConfirm'], $_POST['firstName'], $_POST['lastName'], $_POST['level'], $_POST['username']);
+	if(isset($_POST['baduser'])) {
+		$user = $_POST['username'];
 	} else {
-		$auth->create_user($_POST['password'], $_POST['passwordConfirm'], $_POST['firstName'], $_POST['lastName'], $_POST['level']);
+		$user = null;
 	}
+	$auth->create_user($_POST['password'], $_POST['passwordConfirm'], $_POST['firstName'], $_POST['lastName'], $_POST['level'], $user);
 }
 ?>
 <!doctype html>
@@ -41,21 +42,22 @@ if($_POST) {
 	<h1>New User</h1>
 	<form action="" method="post">
 
-		<?php if($auth->showUserField === true) : ?>
+		<?php if($auth->showUserField !== null) : ?>
 		<p>
 			<label for="username">Username:</label><br />
-			<input type="text" name="username" value="<?php echo $auth->user; ?>" />
+			<input type="text" name="username" value="<?php echo $auth->showUserField; ?>" />
+			<input type="hidden" name="baduser" value="true" />
 		</p>
 		<?php endif; ?>
 
 		<p>
 			<label for="firstName">First Name:</label><br />
-			<input type="text" name="firstName" />
+			<input type="text" name="firstName" value="<?php echo @$_POST['firstName']; ?>" />
 		</p>
 
 		<p>
 			<label for="lastName">Last Name:</label><br />
-			<input type="text" name="lastName" />
+			<input type="text" name="lastName" value="<?php echo @$_POST['lastName']; ?>" />
 		</p>
 
 		<p>
