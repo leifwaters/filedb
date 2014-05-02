@@ -12,5 +12,8 @@ $auth = new UserControl(50);
 <body>
 	<h1>Admin Page</h1>
 
+	<?php
+	?>
+
 </body>
 </html>
