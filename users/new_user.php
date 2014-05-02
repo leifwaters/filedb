@@ -1,7 +1,7 @@
 <?php
 require_once('class.usercontrol.php');
 
-$auth = new UserControl(0);
+$auth = new UserControl(75);
 
 if($_POST) {
 	if(isset($_POST['baduser'])) {
