@@ -38,4 +38,4 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password`, `passExpiry`, `firstName`, `lastName`, `level`, `login_hash`) VALUES
-(11, 'aAdmin', 'sdnjYhlbRyO7w', '2014-05-02 17:44:35', 'Admin', 'Admin', 75, 'ea72a4e863200aabc7ee195e4564f8e74c8dcd95');
+(11, 'aAdmin', 'sdnjYhlbRyO7w', '2014-05-02 17:44:35', 'Admin', 'Admin', 100, 'ea72a4e863200aabc7ee195e4564f8e74c8dcd95');
