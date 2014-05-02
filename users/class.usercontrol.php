@@ -101,12 +101,9 @@ class UserControl {
 		}
 
 		if(isset($_COOKIE['hash'])) {
-			if(defined($_COOKIE['hash'])) {
-				if($_SESSION[$_COOKIE['hash']]->level >= $level) {
-					$this->error[] = 'You do not have permission to access this page.';
-				} else {
-
-				}
+			if($_SESSION[$_COOKIE['hash']]['level'] >= $level) {
+				$this->error[] = 'You do not have permission to access this page.';
+			} else {
 
 			}
 		} elseif($page != 'login') {
@@ -131,12 +128,17 @@ class UserControl {
 		try {
 			$user = $stmt->fetch(PDO::FETCH_OBJ);
 			if($username === $user->username && crypt($password, $this->salt) === $user->password) {
-				setcookie("hash", $user->login_hash, time()+1800, '/');
 
-				$_SESSION[$user->login_hash] = $user;
+				if(!$this->passwordExpiry($username)) {
+					header('Location:'.$this->site_url.'/users/pass_reset.php');
+				} else {
+					setcookie("hash", $user->login_hash, time()+1800, '/');
 
-				if($page !== null) {
-					header('Location:'.$this->site_url.'/'.$page);
+					$_SESSION[$user->login_hash] = $user;
+
+					if($page !== null) {
+						header('Location:'.$this->site_url.'/'.$page);
+					}
 				}
 
 				return true;
@@ -150,10 +152,17 @@ class UserControl {
 	}
 
 	public function logout() {
+		if($_SESSION[$_COOKIE['hash']]) {
+			unset($_SESSION[$_COOKIE['hash']]);
+		}
 
+		if(isset($_COOKIE['hash'])) {
+			unset($_COOKIE['key']);
+			setcookie('key', '', time() - 3600); // empty value and old timestamp
+		}
 	}
 
-	public function user() {
+	public function user($info) {
 		// Make some stuff here for shortcuts to the session stuff
 		// see about accessing stuff like $auth->user()->firstName;
 	}
@@ -176,7 +185,6 @@ class UserControl {
 	 * @return void
 	 *
 	 * @TODO possibly add a memberOf or hasAccess option to specify what can and can not be accessed
-	 * @TODO add a check to see a username is currently in the database
 	 */
 	public function create_user($password, $passconfirm, $firstName, $lastName, $level, $user = null) {
 
@@ -272,6 +280,35 @@ class UserControl {
 		catch(PDOException $e) {
 			$this->error[] = "Something went wrong with the database when trying to check for a username.";
     		file_put_contents('PDOErrors.txt', $e->getMessage(), FILE_APPEND);
+		}
+	}
+
+	/**
+	 * passwordExpiry.
+	 *
+	 * Determines is current password has expired.
+	 *
+	 * @access private
+	 * @param mixed $username
+	 * @return void
+	 */
+	private function passwordExpiry($username) {
+		$stmt = $this->db->prepare('SELECT passExpiry FROM users WHERE username=:username');
+		$stmt->bindParam(':username', $username);
+		$stmt->execute();
+
+		$user = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+		// What was 30 days ago?
+		$curdate = date("Y-m-d H:i:s", strtotime("-30 days"));
+
+		$date = $user[0]['passExpiry'];
+
+		if($date <= $curdate) {
+			return false;
+			$this->errors[] = 'Your password has expired';
+		} else {
+			return true;
 		}
 	}
 
