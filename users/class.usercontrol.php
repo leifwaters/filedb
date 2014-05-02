@@ -101,11 +101,11 @@ class UserControl {
 		}
 
 		if(isset($_COOKIE['hash'])) {
-			if($_SESSION[$_COOKIE['hash']]['level'] >= $level) {
+			if($_SESSION[$_COOKIE['hash']]->level >= $level) {
 				$this->error[] = 'You do not have permission to access this page.';
-			} else {
-
 			}
+		} elseif($page === 'pass_reset') {
+			// This is just here to kill the redirect until I think of a better way.
 		} elseif($page != 'login') {
 			header("Location: ".$this->site_url."/users/login.php");
 		}
@@ -130,7 +130,7 @@ class UserControl {
 			if($username === $user->username && crypt($password, $this->salt) === $user->password) {
 
 				if(!$this->passwordExpiry($username)) {
-					header('Location:'.$this->site_url.'/users/pass_reset.php');
+					header('Location:'.$this->site_url.'/users/pass_reset.php?user='.$username);
 				} else {
 					setcookie("hash", $user->login_hash, time()+1800, '/');
 
@@ -290,7 +290,7 @@ class UserControl {
 	 *
 	 * @access private
 	 * @param mixed $username
-	 * @return void
+	 * @return bool
 	 */
 	private function passwordExpiry($username) {
 		$stmt = $this->db->prepare('SELECT passExpiry FROM users WHERE username=:username');
@@ -312,11 +312,61 @@ class UserControl {
 		}
 	}
 
+
+	/**
+	 * resetPassword.
+	 *
+	 * @access public
+	 * @param mixed $user
+	 * @param mixed $pass
+	 * @param mixed $confirm
+	 * @return void
+	 */
+	public function resetPassword($username, $pass, $confirm) {
+
+
+		$stmt = $this->db->prepare('SELECT password FROM users WHERE username=:username');
+		$stmt->bindParam(':username', $username);
+		$stmt->execute();
+
+		$user = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+		if(!preg_match('/^(?=.*[^a-zA-Z])(?=.*[a-z])(?=.*[A-Z])\S{6,}$/', $pass)) {
+			$this->error[] = 'Your password does not meet the requirements.';
+		} elseif($pass !== $confirm) {
+			$this->error[] = 'Your passwords do not match.';
+		} else {
+			$password_hash = crypt($pass, $this->salt);
+		}
+
+		if($user[0]['password'] === $password_hash) {
+			$this->error[] = 'You cannot use the same password';
+		}
+
+		if(empty($this->error)) {
+
+			try {
+				$stmt = $this->db->prepare("UPDATE `users` SET `password`=:password WHERE `username`=:username");
+				$stmt->bindParam(':username', $username);
+				$stmt->bindParam(':password', $password_hash);
+				$stmt->execute();
+				$this->success['created'] = $username.' was updated!';
+			}
+
+			catch(PDOException $e) {
+				$this->error[] = "Something went wrong with the database when trying to add a user.";
+	    		file_put_contents('PDOErrors.txt', $e->getMessage(), FILE_APPEND);
+			}
+
+			$this->closeDB();
+		}
+	}
+
 	/**
 	 * getSuccess function.
 	 *
 	 * @access public
-	 * @return void
+	 * @return mixed
 	 */
 	public function getSuccess() {
 		if(!$this->success) {
